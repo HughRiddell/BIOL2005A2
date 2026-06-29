@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baseline — BIOL2005 Motion Coherence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand"><span>◆</span> BIOL2005 · Motion Coherence Experiment</a>
+    <div class="nav-links">
+      <a href="baseline.html" class="active">Baseline</a>
+      <a href="experiment.html">Experimental Condition</a>
+      <a href="analysis.html">Analysis</a>
+    </div>
+  </div>
+</nav>
+
+<main class="page">
+
+  <!-- ============================================================
+       SETUP PHASE
+       ============================================================ -->
+  <section id="setup-section">
+    <div class="page-header">
+      <p class="eyebrow">Step 01 · Baseline condition</p>
+      <h1>The standard task.</h1>
+      <p class="lede">Run this for every participant before configuring the experimental condition. The parameters below are fixed.</p>
+    </div>
+
+    <div class="illusion-grid">
+
+      <!-- LEFT: instructions + parameter readout -->
+      <div>
+        <div class="stage">
+          <h2>Instructions</h2>
+          <p style="font-size: 16px;">On every trial you will see a small fixation cross in the middle of the screen, then a cloud of moving dots. Most dots move randomly, but some move coherently to the <strong>left</strong> or <strong>right</strong>. Your task is to decide which.</p>
+          <p style="font-size: 16px;">After the dots disappear, the screen will go blank. <strong>That is when you respond.</strong> Press the <code style="font-family: var(--mono); background: var(--rule-soft); padding: 1px 6px; border-radius: 2px;">←</code> key for left, the <code style="font-family: var(--mono); background: var(--rule-soft); padding: 1px 6px; border-radius: 2px;">→</code> key for right. There is no feedback — just respond as accurately as you can and move on.</p>
+          <p style="font-size: 16px;">Try not to think too long. If you are unsure, give your best guess. The trials are short, and there are 120 of them; the session takes around six to seven minutes.</p>
+
+          <div class="viewing-note">
+            <strong>Tip</strong>
+            Keep your eyes fixed on the cross in the centre of the screen, even during the dot motion. Do not try to track individual dots.
+          </div>
+        </div>
+
+        <div class="stage" style="margin-top: 24px;">
+          <h3>Task parameters</h3>
+          <ul class="params-list" id="params-readout"><!-- populated by JS --></ul>
+        </div>
+      </div>
+
+      <!-- RIGHT: participant ID + run controls -->
+      <div class="controls">
+        <h2 class="controls-title">Run session</h2>
+
+        <div class="control-group">
+          <label class="control-label" for="participant-id">
+            <span>Participant ID</span>
+          </label>
+          <input type="text" id="participant-id" maxlength="40" placeholder="e.g. P01" autocomplete="off">
+          <p class="field-hint">Use a code that lets you match this participant's baseline and experimental data files. Letters, numbers, hyphens, and underscores only.</p>
+          <p class="field-error" id="start-error"></p>
+        </div>
+
+        <div class="controls-footer">
+          <div class="btn-row" style="flex-direction: column; align-items: stretch;">
+            <button class="btn btn-ghost" id="btn-practice">Run practice (6 trials)</button>
+            <button class="btn" id="btn-start">Start main block →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       RUNNING PHASE
+       ============================================================ -->
+  <section id="run-section" style="display: none;">
+    <div class="page-header" style="text-align: center;">
+      <p class="eyebrow" id="run-eyebrow">Baseline condition</p>
+      <h1 id="run-title" style="font-size: 36px;">In progress</h1>
+    </div>
+
+    <div style="max-width: 1120px; margin: 0 auto;">
+      <div class="stage-runtime">
+        <canvas id="rdk-canvas" width="880" height="500"
+                style="max-width: 880px; width: 100%; height: auto;"></canvas>
+      </div>
+      <div class="stage-progress">
+        <div class="stage-progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="run-status">
+        <span id="status" class="status-key">Get ready…</span>
+        <span id="trial-counter"></span>
+      </div>
+      <div style="text-align: center; margin-top: 28px;">
+        <button class="btn btn-ghost" id="btn-abort">Abort session</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       COMPLETION PHASE
+       ============================================================ -->
+  <section id="done-section" style="display: none;">
+    <div class="page-header">
+      <p class="eyebrow">Step 01 · Complete</p>
+      <h1>Baseline recorded.</h1>
+      <p class="lede" id="done-lede">Download the data file below — you will need it for the analysis step.</p>
+    </div>
+
+    <div class="illusion-grid">
+
+      <div>
+        <div class="stage">
+          <h3>Summary</h3>
+          <ul class="params-list" id="summary-readout"><!-- populated by JS --></ul>
+        </div>
+
+        <div class="viewing-note" style="margin-top: 24px;">
+          <strong>Naming convention</strong>
+          Files are named <code style="font-family: var(--mono);">baseline_PARTICIPANT-ID_TIMESTAMP.csv</code>. Keep these files together with the matching experimental file for each participant.
+        </div>
+      </div>
+
+      <div class="controls">
+        <h2 class="controls-title">Next steps</h2>
+        <div class="btn-row" style="flex-direction: column; align-items: stretch;">
+          <button class="btn" id="btn-download">Download CSV</button>
+          <a class="btn btn-ghost" href="experiment.html" style="text-align: center; text-decoration: none;">Continue to experimental →</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  BIOL2005 Perception · Curtin University · Built for Assessment 2, 2026.
+</footer>
+
+<script src="rdk.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ----------------------------------------------------------------
+  // DOM references
+  // ----------------------------------------------------------------
+  const setupSection = document.getElementById('setup-section');
+  const runSection = document.getElementById('run-section');
+  const doneSection = document.getElementById('done-section');
+  const participantIdInput = document.getElementById('participant-id');
+  const startError = document.getElementById('start-error');
+  const btnPractice = document.getElementById('btn-practice');
+  const btnStart = document.getElementById('btn-start');
+  const btnAbort = document.getElementById('btn-abort');
+  const btnDownload = document.getElementById('btn-download');
+  const canvas = document.getElementById('rdk-canvas');
+  const statusEl = document.getElementById('status');
+  const trialCounter = document.getElementById('trial-counter');
+  const progressBar = document.getElementById('progress-bar');
+  const runTitle = document.getElementById('run-title');
+  const runEyebrow = document.getElementById('run-eyebrow');
+  const doneLede = document.getElementById('done-lede');
+  const paramsReadout = document.getElementById('params-readout');
+  const summaryReadout = document.getElementById('summary-readout');
+
+  // Highlight current nav link
+  document.querySelectorAll('.nav-links a').forEach(a => {
+    if (a.getAttribute('href') === location.pathname.split('/').pop()) {
+      a.classList.add('active');
+    }
+  });
+
+  // ----------------------------------------------------------------
+  // Parameters readout
+  // ----------------------------------------------------------------
+  const P = RDK.DEFAULTS;
+  const paramRows = [
+    ['Aperture', P.apertureRadiusPx * 2 + ' px diameter'],
+    ['Number of dots', P.nDots],
+    ['Dot speed', P.dotSpeedPxPerFrame + ' px/frame'],
+    ['Dot lifetime', P.dotLifetimeFrames + ' frames'],
+    ['Stimulus duration', P.durationMs + ' ms'],
+    ['Coherence levels', P.coherences.map(c => (c*100).toFixed(0) + '%').join(', ')],
+    ['Trials per level', P.trialsPerCoherence],
+    ['Total trials', P.coherences.length * P.trialsPerCoherence],
+  ];
+  paramsReadout.innerHTML = paramRows.map(([k, v]) => `
+    <li><span class="pk">${k}</span><span class="pv">${v}</span></li>`).join('');
+
+  // ----------------------------------------------------------------
+  // Validation
+  // ----------------------------------------------------------------
+  function validateParticipantId() {
+    const v = participantIdInput.value.trim();
+    if (!v) {
+      startError.textContent = 'Please enter a participant ID before starting.';
+      return null;
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(v)) {
+      startError.textContent = 'Use only letters, numbers, hyphens, and underscores.';
+      return null;
+    }
+    startError.textContent = '';
+    return v;
+  }
+
+  // ----------------------------------------------------------------
+  // Session controllers
+  // ----------------------------------------------------------------
+  let currentBlock = null;
+
+  function showSection(name) {
+    setupSection.style.display = (name === 'setup') ? '' : 'none';
+    runSection.style.display   = (name === 'run')   ? '' : 'none';
+    doneSection.style.display  = (name === 'done')  ? '' : 'none';
+  }
+
+  function startSession(isPractice) {
+    const pid = validateParticipantId();
+    if (!pid) return;
+
+    let trials;
+    if (isPractice) {
+      trials = RDK.buildTrialSequence([0.80], 6);
+    } else {
+      trials = RDK.buildTrialSequence(P.coherences, P.trialsPerCoherence);
+    }
+
+    document.body.classList.add('running');
+    showSection('run');
+    runEyebrow.textContent = isPractice ? 'Practice' : 'Baseline condition';
+    runTitle.textContent = isPractice ? 'Practice block' : 'In progress';
+    statusEl.textContent = 'Get ready…';
+    trialCounter.textContent = '';
+    progressBar.style.width = '0%';
+
+    const stage = RDK.createStage(canvas);
+    stage.drawFixation();
+
+    setTimeout(() => {
+      statusEl.textContent = '← left   → right';
+      currentBlock = RDK.runBlock(stage, trials, {
+        onTrialStart: (idx, total) => {
+          progressBar.style.width = (100 * (idx - 1) / total).toFixed(1) + '%';
+          trialCounter.textContent = `Trial ${idx} of ${total}`;
+        },
+        onComplete: (data) => {
+          progressBar.style.width = '100%';
+          trialCounter.textContent = '';
+          if (isPractice) finishPractice();
+          else finishMain(pid, data);
+        },
+      });
+    }, 1500);
+  }
+
+  function finishPractice() {
+    document.body.classList.remove('running');
+    showSection('setup');
+    statusEl.textContent = '';
+    const oldText = btnPractice.textContent;
+    btnPractice.textContent = '✓ Practice complete';
+    btnPractice.disabled = true;
+    setTimeout(() => {
+      btnPractice.textContent = oldText;
+      btnPractice.disabled = false;
+    }, 2500);
+    btnStart.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  let mainData = null;
+  let mainPid = null;
+  let mainTimestamp = null;
+
+  function finishMain(pid, data) {
+    document.body.classList.remove('running');
+    mainData = data;
+    mainPid = pid;
+    mainTimestamp = isoTimestamp();
+
+    showSection('done');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    doneLede.textContent = `${data.length} trials recorded for ${pid}. Download the data file below — you will need it for the analysis step.`;
+
+    const completed = data.filter(d => d.response !== null).length;
+    const acc = completed > 0
+      ? (data.filter(d => d.correct === 1).length / completed * 100).toFixed(1) + '%'
+      : '—';
+    const meanRT = completed > 0
+      ? Math.round(data.filter(d => d.rt_ms !== null).reduce((a, b) => a + b.rt_ms, 0) / completed) + ' ms'
+      : '—';
+    const summary = [
+      ['Participant', pid],
+      ['Trials completed', `${completed} / ${data.length}`],
+      ['Overall accuracy', acc],
+      ['Mean response time', meanRT],
+      ['Timestamp', mainTimestamp],
+    ];
+    summaryReadout.innerHTML = summary.map(([k, v]) => `
+      <li><span class="pk">${k}</span><span class="pv">${v}</span></li>`).join('');
+  }
+
+  function isoTimestamp() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-' +
+           pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+
+  btnDownload.addEventListener('click', () => {
+    if (!mainData) return;
+    const meta = {
+      condition: 'baseline',
+      participant_id: mainPid,
+      timestamp: mainTimestamp,
+      n_trials: mainData.length,
+      coherences: P.coherences.join(';'),
+      trials_per_coherence: P.trialsPerCoherence,
+      aperture_radius_px: P.apertureRadiusPx,
+      n_dots: P.nDots,
+      dot_speed_px_per_frame: P.dotSpeedPxPerFrame,
+      dot_lifetime_frames: P.dotLifetimeFrames,
+      stimulus_duration_ms: P.durationMs,
+      manipulation: 'none',
+    };
+    const csv = RDK.toCSV(mainData, meta);
+    RDK.downloadCSV(csv, `baseline_${mainPid}_${mainTimestamp}.csv`);
+  });
+
+  btnPractice.addEventListener('click', () => startSession(true));
+  btnStart.addEventListener('click', () => startSession(false));
+  btnAbort.addEventListener('click', () => {
+    if (currentBlock) currentBlock.abort();
+    document.body.classList.remove('running');
+    showSection('setup');
+    statusEl.textContent = '';
+    trialCounter.textContent = '';
+  });
+  participantIdInput.addEventListener('input', () => { startError.textContent = ''; });
+
+})();
+</script>
+
+</body>
+</html>

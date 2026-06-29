@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analysis — BIOL2005 Motion Coherence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand"><span>◆</span> BIOL2005 · Motion Coherence Experiment</a>
+    <div class="nav-links">
+      <a href="baseline.html">Baseline</a>
+      <a href="experiment.html">Experimental Condition</a>
+      <a href="analysis.html" class="active">Analysis</a>
+    </div>
+  </div>
+</nav>
+
+<main class="page">
+
+  <div class="page-header">
+    <p class="eyebrow">Step 03 · Analysis</p>
+    <h1>Fit your psychometric functions.</h1>
+    <p class="lede">Upload the CSV files your participants produced in the baseline and experimental sessions. Each file is fitted with a psychometric function, and the 75% correct threshold is read off the fit. You can also pool all uploaded participants per condition to see an averaged curve.</p>
+  </div>
+
+  <!-- Upload area -->
+  <section>
+    <div class="stage">
+      <h3>1. Upload CSV files</h3>
+      <p style="font-size: 15px; color: var(--ink-soft);">Select one or more CSV files produced by the baseline or experimental pages. You can re-upload to add more files later.</p>
+
+      <div id="drop-zone" class="drop-zone">
+        <input type="file" id="file-input" accept=".csv,text/csv" multiple style="display: none;">
+        <p style="margin: 0;"><strong>Drop CSV files here</strong> or <a href="#" id="file-link" style="color: var(--accent);">choose files</a></p>
+        <p class="field-hint" style="margin-top: 6px;">Files are processed entirely in your browser — nothing is uploaded to a server.</p>
+      </div>
+
+      <div id="upload-error" class="field-error" style="margin-top: 8px;"></div>
+    </div>
+  </section>
+
+  <!-- File list + plot -->
+  <section style="margin-top: 32px;" id="results-section" hidden>
+
+    <div class="illusion-grid">
+
+      <!-- LEFT: plot -->
+      <div>
+        <div class="stage">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+            <h3 style="margin: 0;">Psychometric functions</h3>
+            <button class="btn" id="btn-export" style="font-size: 11px; padding: 6px 12px;">Export PNG</button>
+          </div>
+          <svg id="plot" role="img" aria-label="Psychometric function plot"></svg>
+        </div>
+
+        <div class="stage" style="margin-top: 20px;">
+          <h3>Fit summary</h3>
+          <p style="font-size: 13px; color: var(--muted); margin: 0 0 12px;">75% correct threshold and Weibull slope (β) for each visible trace. The slope describes how steeply performance rises across coherence levels; larger values mean a sharper transition.</p>
+          <table class="fit-table" id="fit-table">
+            <thead>
+              <tr>
+                <th>Trace</th>
+                <th>Threshold (75%)</th>
+                <th>Slope (β)</th>
+              </tr>
+            </thead>
+            <tbody id="fit-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="stage" style="margin-top: 20px;">
+          <h3>Compare baseline vs experimental</h3>
+          <div class="btn-row">
+            <button class="btn" id="btn-test">Run statistical tests</button>
+          </div>
+          <div id="test-results" style="margin-top: 16px;"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: file list / visibility toggles -->
+      <div class="controls">
+        <h2 class="controls-title">Traces</h2>
+
+        <div class="control-group">
+          <h3 style="font-size: 11px; margin-bottom: 8px;">Combined (pooled across participants)</h3>
+          <ul class="trace-list" id="combined-list"></ul>
+        </div>
+
+        <div class="control-group" style="margin-top: 16px;">
+          <h3 style="font-size: 11px; margin-bottom: 8px;">Individual participants</h3>
+          <ul class="trace-list" id="files-list"></ul>
+        </div>
+
+        <div class="controls-footer">
+          <div class="btn-row" style="flex-direction: column; align-items: stretch;">
+            <button class="btn btn-ghost" id="btn-clear">Clear all files</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  BIOL2005 Perception · Curtin University · Built for Assessment 2, 2026.
+</footer>
+
+<script src="analysis.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Highlight current nav link
+  document.querySelectorAll('.nav-links a').forEach(a => {
+    if (a.getAttribute('href') === location.pathname.split('/').pop()) {
+      a.classList.add('active');
+    }
+  });
+
+  // ----------------------------------------------------------------
+  // State
+  // ----------------------------------------------------------------
+  // Each "trace" object describes one curve on the plot. Kinds:
+  //   - 'file': one uploaded CSV (one participant × one condition)
+  //   - 'combined': pooled across all uploaded files of one condition
+  //
+  // For file traces:
+  //   { kind: 'file', id, label, condition, participantId, agg, fit, visible, color, rawRows }
+  // For combined traces:
+  //   { kind: 'combined', id, label, condition, agg, fit, visible, color }
+  const state = {
+    traces: [],
+    nextId: 1,
+  };
+
+  // Colour palettes:
+  //   - baselines:    cool greys / blues
+  //   - experimental: oxblood / warm reds
+  // Individual files cycle through palette indices; combined uses a special bold colour per condition.
+  const COLORS = {
+    baselineCombined:    '#2e4d6b',
+    experimentalCombined:'#8a1c1c',
+    baselineIndividual: ['#5b7a9a', '#7d9bb8', '#476380', '#94a8be', '#6c8fae'],
+    experimentalIndividual: ['#b85c5c', '#a04141', '#c97c7c', '#893030', '#cf9999'],
+  };
+
+  function pickColor(condition, index) {
+    const arr = condition === 'baseline'
+      ? COLORS.baselineIndividual
+      : COLORS.experimentalIndividual;
+    return arr[index % arr.length];
+  }
+
+  // ----------------------------------------------------------------
+  // File handling
+  // ----------------------------------------------------------------
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileLink = document.getElementById('file-link');
+  const uploadError = document.getElementById('upload-error');
+  const resultsSection = document.getElementById('results-section');
+  const filesList = document.getElementById('files-list');
+  const combinedList = document.getElementById('combined-list');
+  const fitTableBody = document.getElementById('fit-tbody');
+  const testResults = document.getElementById('test-results');
+  const btnTest = document.getElementById('btn-test');
+  const plotSvg = document.getElementById('plot');
+  const btnExport = document.getElementById('btn-export');
+  const btnClear = document.getElementById('btn-clear');
+
+  fileLink.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
+  fileInput.addEventListener('change', () => {
+    handleFiles(Array.from(fileInput.files));
+    fileInput.value = '';
+  });
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drop-active');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-active'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drop-active');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+    handleFiles(files);
+  });
+
+  async function handleFiles(files) {
+    uploadError.textContent = '';
+    const errs = [];
+    for (const file of files) {
+      try {
+        const text = await file.text();
+        const { meta, rows } = ANALYSIS.parseCSV(text);
+        const condition = (meta.condition || '').toLowerCase();
+        if (condition !== 'baseline' && condition !== 'experimental') {
+          errs.push(`${file.name}: condition is "${meta.condition || 'missing'}" (expected "baseline" or "experimental")`);
+          continue;
+        }
+        const pid = meta.participant_id || 'unknown';
+        const agg = ANALYSIS.aggregateByCoherence(rows);
+        let fit = null;
+        try { fit = ANALYSIS.fitPsychometric(agg); }
+        catch (err) { console.warn('Fit failed for', file.name, err); }
+
+        const sameCondCount = state.traces.filter(t => t.kind === 'file' && t.condition === condition).length;
+        const trace = {
+          kind: 'file',
+          id: 'file_' + state.nextId++,
+          label: `${pid} · ${condition}`,
+          filename: file.name,
+          condition: condition,
+          participantId: pid,
+          meta: meta,
+          rawRows: rows,
+          agg: agg,
+          fit: fit,
+          visible: true,
+          color: pickColor(condition, sameCondCount),
+        };
+        state.traces.push(trace);
+      } catch (err) {
+        errs.push(`${file.name}: ${err.message}`);
+      }
+    }
+    if (errs.length) uploadError.innerHTML = errs.join('<br>');
+    rebuildCombinedTraces();
+    redraw();
+  }
+
+  function rebuildCombinedTraces() {
+    // Remove existing combined traces, recompute from current file traces
+    state.traces = state.traces.filter(t => t.kind !== 'combined');
+
+    for (const cond of ['baseline', 'experimental']) {
+      const filesForCond = state.traces.filter(t => t.kind === 'file' && t.condition === cond);
+      if (filesForCond.length === 0) continue;
+      const allRows = filesForCond.map(t => t.rawRows);
+      const pooledAgg = ANALYSIS.pooledFromMany(allRows);
+      let fit = null;
+      try { fit = ANALYSIS.fitPsychometric(pooledAgg); }
+      catch (err) { console.warn('Pooled fit failed for', cond, err); }
+      state.traces.push({
+        kind: 'combined',
+        id: 'combined_' + cond,
+        label: `Combined ${cond} (n=${filesForCond.length})`,
+        condition: cond,
+        agg: pooledAgg,
+        fit: fit,
+        visible: filesForCond.length > 1,  // only show combined when there's more than one file
+        color: cond === 'baseline' ? COLORS.baselineCombined : COLORS.experimentalCombined,
+      });
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // Describe manipulation(s) applied in an experimental file
+  // ----------------------------------------------------------------
+  // Returns a short human-readable string built from the
+  // manipulation_* fields in a file's metadata.
+  function describeManipulation(meta) {
+    const parts = [];
+    const m = meta || {};
+    function isSet(v) { return v !== undefined && v !== '' && v !== 'baseline' && v !== 'none'; }
+    if (isSet(m.manipulation_duration_ms))            parts.push(`stimulus duration = ${m.manipulation_duration_ms} ms`);
+    if (isSet(m.manipulation_eccentricity_px))        parts.push(`eccentricity = ${m.manipulation_eccentricity_px} px`);
+    if (isSet(m.manipulation_speed_px_per_frame))     parts.push(`dot speed = ${m.manipulation_speed_px_per_frame} px/frame`);
+    if (isSet(m.manipulation_density_dots))           parts.push(`dot density = ${m.manipulation_density_dots} dots`);
+    if (isSet(m.manipulation_aperture_radius_px))     parts.push(`aperture radius = ${m.manipulation_aperture_radius_px} px`);
+    if (isSet(m.manipulation_contrast_pct))           parts.push(`dot contrast = ${m.manipulation_contrast_pct}%`);
+    if (isSet(m.manipulation_external_label))         parts.push(`external (${m.manipulation_external_label})`);
+    if (parts.length === 0) return 'no manipulation applied';
+    return parts.join(', ');
+  }
+
+  // Across all currently-uploaded experimental files, build a label
+  // for the heading. If they all share the same manipulation, use it;
+  // otherwise note that they differ.
+  function manipulationHeading() {
+    const expFiles = state.traces.filter(t => t.kind === 'file' && t.condition === 'experimental');
+    if (expFiles.length === 0) return null;
+    const descriptions = expFiles.map(t => describeManipulation(t.meta));
+    const uniq = Array.from(new Set(descriptions));
+    if (uniq.length === 1) return uniq[0];
+    // Multiple manipulations present across files
+    return `${uniq.length} different manipulations across files`;
+  }
+
+  // ----------------------------------------------------------------
+  // Rendering
+  // ----------------------------------------------------------------
+  function redraw() {
+    if (state.traces.length === 0) {
+      resultsSection.hidden = true;
+      return;
+    }
+    resultsSection.hidden = false;
+
+    // Re-render trace lists
+    renderTraceList(combinedList, state.traces.filter(t => t.kind === 'combined'));
+    renderTraceList(filesList, state.traces.filter(t => t.kind === 'file'));
+
+    // Render plot — include manipulation description as title if any
+    const manip = manipulationHeading();
+    const plotTitle = manip ? `Baseline vs ${manip}` : '';
+    ANALYSIS.plot(plotSvg, state.traces, { title: plotTitle });
+
+    // Render fit summary table
+    renderFitTable();
+
+    // Don't auto-rerun tests; clear stale results when data changes
+    testResults.innerHTML = '';
+  }
+
+  function renderTraceList(listEl, traces) {
+    listEl.innerHTML = '';
+    if (traces.length === 0) {
+      listEl.innerHTML = '<li style="font-style: italic; color: var(--muted); font-size: 12px; padding: 6px 0;">None</li>';
+      return;
+    }
+    for (const t of traces) {
+      const li = document.createElement('li');
+      li.className = 'trace-item';
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = t.visible;
+      check.id = 'chk_' + t.id;
+      check.addEventListener('change', () => {
+        t.visible = check.checked;
+        redraw();
+      });
+      const swatch = document.createElement('span');
+      swatch.className = 'trace-swatch';
+      swatch.style.background = t.color;
+      const label = document.createElement('label');
+      label.setAttribute('for', 'chk_' + t.id);
+      label.className = 'trace-label';
+      label.textContent = t.label;
+      const meta = document.createElement('span');
+      meta.className = 'trace-meta';
+      if (t.fit && t.fit.alpha) {
+        const thr75 = ANALYSIS.thresholdAt(0.75, t.fit.alpha, t.fit.beta);
+        const thrTxt = thr75 !== null ? `t₇₅=${thr75.toFixed(3)}` : '';
+        const slopeTxt = `β=${t.fit.beta.toFixed(2)}`;
+        meta.textContent = `${thrTxt} · ${slopeTxt}`;
+      }
+      li.appendChild(check);
+      li.appendChild(swatch);
+      li.appendChild(label);
+      li.appendChild(meta);
+      // Allow removing file traces only (combined are auto-managed)
+      if (t.kind === 'file') {
+        const rm = document.createElement('button');
+        rm.className = 'trace-remove';
+        rm.title = 'Remove this file';
+        rm.textContent = '×';
+        rm.addEventListener('click', (e) => {
+          e.preventDefault();
+          state.traces = state.traces.filter(tt => tt.id !== t.id);
+          rebuildCombinedTraces();
+          redraw();
+        });
+        li.appendChild(rm);
+      }
+      listEl.appendChild(li);
+    }
+  }
+
+  function renderFitTable() {
+    const visible = state.traces.filter(t => t.visible);
+    if (visible.length === 0) {
+      fitTableBody.innerHTML = '<tr><td colspan="3" style="font-style: italic; color: var(--muted); padding: 12px;">No traces visible.</td></tr>';
+      return;
+    }
+    const rows = visible.map(t => {
+      let thrText = '—', slopeText = '—';
+      if (t.fit && t.fit.alpha) {
+        const thr75 = ANALYSIS.thresholdAt(0.75, t.fit.alpha, t.fit.beta);
+        if (thr75 !== null && thr75 >= 0 && thr75 <= 1) thrText = thr75.toFixed(3);
+        else if (thr75 !== null && thr75 > 1) thrText = `>1.0 (off chart)`;
+        slopeText = t.fit.beta.toFixed(2);
+      }
+      return `<tr>
+        <td><span class="trace-swatch" style="background:${t.color}; margin-right: 8px; vertical-align: middle;"></span>${t.label}</td>
+        <td class="num">${thrText}</td>
+        <td class="num">${slopeText}</td>
+      </tr>`;
+    });
+    fitTableBody.innerHTML = rows.join('');
+  }
+
+  // ----------------------------------------------------------------
+  // Statistical comparison of conditions
+  // ----------------------------------------------------------------
+  function runComparison() {
+    const baselineFiles = state.traces.filter(t => t.kind === 'file' && t.condition === 'baseline' && t.fit && t.fit.alpha);
+    const expFiles = state.traces.filter(t => t.kind === 'file' && t.condition === 'experimental' && t.fit && t.fit.alpha);
+
+    if (baselineFiles.length === 0 || expFiles.length === 0) {
+      testResults.innerHTML = `<p class="field-error">Need at least one baseline file AND one experimental file to compare.</p>`;
+      return;
+    }
+
+    // Helper: extract threshold and slope from a file trace
+    function metrics(t) {
+      const thr = ANALYSIS.thresholdAt(0.75, t.fit.alpha, t.fit.beta);
+      return { pid: t.participantId, threshold: thr, slope: t.fit.beta };
+    }
+
+    const baseMetrics = baselineFiles.map(metrics);
+    const expMetrics = expFiles.map(metrics);
+
+    // Try to pair by participant ID. Multiple files with the same
+    // PID (e.g. re-runs) — pair by their order of appearance.
+    function pairByPid(a, b) {
+      const aByPid = new Map();
+      for (const m of a) {
+        if (!aByPid.has(m.pid)) aByPid.set(m.pid, []);
+        aByPid.get(m.pid).push(m);
+      }
+      const pairs = [];
+      const usedAIndices = new Set();
+      for (const m of b) {
+        const arr = aByPid.get(m.pid);
+        if (!arr || arr.length === 0) continue;
+        const partner = arr.shift();
+        pairs.push({ pid: m.pid, baseline: partner, experimental: m });
+      }
+      return pairs;
+    }
+
+    const pairs = pairByPid(baseMetrics, expMetrics);
+
+    let testKind, thresholdResult, slopeResult, sampleNote;
+
+    if (pairs.length >= 2) {
+      testKind = 'paired';
+      thresholdResult = ANALYSIS.pairedTTest(
+        pairs.map(p => ({ a: p.experimental.threshold, b: p.baseline.threshold }))
+      );
+      slopeResult = ANALYSIS.pairedTTest(
+        pairs.map(p => ({ a: p.experimental.slope, b: p.baseline.slope }))
+      );
+      const totalBase = baselineFiles.length, totalExp = expFiles.length;
+      const unmatched = (totalBase - pairs.length) + (totalExp - pairs.length);
+      sampleNote = `Paired t-test on ${pairs.length} matched participant${pairs.length === 1 ? '' : 's'} (matched by participant ID).` +
+                   (unmatched > 0 ? ` ${unmatched} unmatched file${unmatched === 1 ? '' : 's'} excluded.` : '');
+    } else if (baselineFiles.length >= 2 && expFiles.length >= 2) {
+      testKind = 'welch';
+      thresholdResult = ANALYSIS.welchTTest(
+        expMetrics.map(m => m.threshold),
+        baseMetrics.map(m => m.threshold)
+      );
+      slopeResult = ANALYSIS.welchTTest(
+        expMetrics.map(m => m.slope),
+        baseMetrics.map(m => m.slope)
+      );
+      const pairNote = pairs.length === 0
+        ? 'no shared participant IDs found'
+        : `only ${pairs.length} shared participant ID — need ≥2 for a paired test`;
+      sampleNote = `Welch two-sample t-test (${pairNote}, so participants treated as independent groups). Baseline n = ${baselineFiles.length}, experimental n = ${expFiles.length}.`;
+    } else {
+      testResults.innerHTML = `<p class="field-error">Not enough data: need either ≥2 matched participants (same ID in both conditions), or ≥2 baseline files AND ≥2 experimental files for the unpaired test.</p>`;
+      return;
+    }
+
+    renderTestResults(testKind, thresholdResult, slopeResult, sampleNote, pairs);
+  }
+
+  function renderTestResults(kind, thrR, slopeR, sampleNote, pairs) {
+    function formatBlock(title, r, metricLabel) {
+      if (!r.ok) {
+        return `<div class="test-block"><h4>${title}</h4><p class="field-hint">${r.reason || 'Test could not be computed.'}</p></div>`;
+      }
+      const meanLabel = r.kind === 'paired' ? 'Mean difference (experimental − baseline)' : 'Mean difference (experimental − baseline)';
+      const meanVal = r.kind === 'paired' ? r.mean : r.meanDiff;
+      const sig = isFinite(r.p) && r.p < 0.05;
+      return `
+        <div class="test-block">
+          <h4>${title}</h4>
+          <table class="test-table">
+            <tr><td>${meanLabel}</td><td class="num">${meanVal.toFixed(3)}</td></tr>
+            <tr><td>95% CI on difference</td><td class="num">[${r.ciLow.toFixed(3)}, ${r.ciHigh.toFixed(3)}]</td></tr>
+            <tr><td>t</td><td class="num">${r.t.toFixed(3)}</td></tr>
+            <tr><td>df</td><td class="num">${r.df.toFixed(r.kind === 'welch' ? 2 : 0)}</td></tr>
+            <tr><td>p-value (two-tailed)</td><td class="num"><strong>${ANALYSIS.formatP(r.p)}</strong></td></tr>
+            <tr><td>Conclusion at α = 0.05</td><td class="num">${sig ? '<span style="color: var(--accent); font-weight:600;">significant</span>' : 'not significant'}</td></tr>
+          </table>
+        </div>`;
+    }
+
+    const pairedBlock = (kind === 'paired') ? `
+      <details style="margin-top: 14px;">
+        <summary style="cursor: pointer; font-family: var(--sans); font-size: 12px; color: var(--muted);">Show matched pairs (${pairs.length})</summary>
+        <table class="test-table" style="margin-top: 8px;">
+          <thead><tr><th>Participant</th><th>Baseline thr.</th><th>Exp. thr.</th><th>Baseline β</th><th>Exp. β</th></tr></thead>
+          <tbody>${pairs.map(p => `
+            <tr>
+              <td>${p.pid}</td>
+              <td class="num">${p.baseline.threshold.toFixed(3)}</td>
+              <td class="num">${p.experimental.threshold.toFixed(3)}</td>
+              <td class="num">${p.baseline.slope.toFixed(2)}</td>
+              <td class="num">${p.experimental.slope.toFixed(2)}</td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </details>` : '';
+
+    testResults.innerHTML = `
+      <p class="field-hint" style="margin-bottom: 14px;">${sampleNote}</p>
+      ${formatBlock('Threshold (75% correct point)', thrR, 'threshold')}
+      ${formatBlock('Slope (Weibull β)', slopeR, 'slope')}
+      ${pairedBlock}
+    `;
+  }
+
+  btnTest.addEventListener('click', runComparison);
+
+  // ----------------------------------------------------------------
+  // Export
+  // ----------------------------------------------------------------
+  btnExport.addEventListener('click', () => {
+    const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
+    ANALYSIS.exportPNG(plotSvg, `psychometric_${stamp}.png`, 2);
+  });
+
+  btnClear.addEventListener('click', () => {
+    if (state.traces.length === 0) return;
+    if (!confirm('Remove all uploaded files? This will clear the plot.')) return;
+    state.traces = [];
+    state.nextId = 1;
+    redraw();
+  });
+
+})();
+</script>
+
+</body>
+</html>

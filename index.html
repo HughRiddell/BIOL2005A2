@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIOL2005 — Motion Coherence Experiment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand"><span>◆</span> BIOL2005 · Motion Coherence Experiment</a>
+    <div class="nav-links">
+      <a href="baseline.html">Baseline</a>
+      <a href="experiment.html">Experimental Condition</a>
+      <a href="analysis.html">Analysis</a>
+    </div>
+  </div>
+</nav>
+
+<main class="page">
+
+  <section class="hero">
+    <p class="eyebrow">Perception · Assessment 2 · Group Experiment</p>
+    <h1>Measuring a motion coherence threshold.</h1>
+    <p class="lede">A psychophysics experiment using the method of constant stimuli. Run a baseline session for each participant, then an experimental session with a manipulation of your group's choosing. Fit a psychometric function to the data and obtain a threshold.</p>
+    <div class="meta-row">
+      <div class="meta-item">
+        <span>Unit</span>
+        <strong>BIOL2005 Perception</strong>
+      </div>
+      <div class="meta-item">
+        <span>Assessment</span>
+        <strong>Group Presentation (30%)</strong>
+      </div>
+      <div class="meta-item">
+        <span>Due</span>
+        <strong>Friday, Week 11</strong>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="margin-bottom: 4px;">Briefing video</h2>
+    <p style="font-family: var(--sans); font-size: 13px; color: var(--muted); margin: 0 0 18px;">Watch this before running the experiment.</p>
+    <div class="video-frame">
+      <!-- Replace with an embedded video. For a local MP4:
+             <video controls src="briefing.mp4"></video>
+           For a YouTube/Vimeo embed:
+             <iframe src="https://www.youtube.com/embed/VIDEO_ID" allowfullscreen></iframe>
+      -->
+      <div class="video-placeholder">
+        <span class="icon" aria-hidden="true"></span>
+        Briefing video — placeholder
+      </div>
+    </div>
+  </section>
+
+  <section style="margin-top: 60px;">
+    <h2 style="margin-bottom: 4px;">Workflow</h2>
+    <p style="font-family: var(--sans); font-size: 13px; color: var(--muted); margin: 0 0 28px;">Each participant in your study completes Step 1 and Step 2 in order. Step 3 is done by your group at the end.</p>
+
+    <div class="path-list">
+
+      <a href="baseline.html" class="path-card">
+        <span class="num">STEP 01</span>
+        <h3 class="title">Baseline condition</h3>
+        <p class="desc">The standard motion coherence task with fixed parameters. Every participant runs this once before the experimental condition.</p>
+        <span class="arrow">→</span>
+      </a>
+
+      <a href="experiment.html" class="path-card">
+        <span class="num">STEP 02</span>
+        <h3 class="title">Experimental condition</h3>
+        <p class="desc">The same task, with one manipulation of your group's choosing applied. Every participant runs this once.</p>
+        <span class="arrow">→</span>
+      </a>
+
+      <a href="analysis.html" class="path-card">
+        <span class="num">STEP 03</span>
+        <h3 class="title">Analysis</h3>
+        <p class="desc">Upload the CSV files produced by your participants to fit psychometric functions and obtain thresholds.</p>
+        <span class="arrow">→</span>
+      </a>
+
+    </div>
+  </section>
+
+  <section style="margin-top: 60px;">
+    <h2>What you will be doing</h2>
+    <p>Across many short trials, a cloud of moving dots will appear briefly. On every trial some proportion of dots move coherently to the left or right; the rest move in independent random directions. After the dots disappear, the participant indicates the direction of coherent motion using the left and right arrow keys.</p>
+
+    <p>The proportion of coherently moving dots — the <em>coherence</em> — varies from trial to trial across six levels. At very low coherence the task is impossible; at high coherence it is trivial. Somewhere in between sits a <em>coherence threshold</em>: the level at which the participant responds correctly 75% of the time. You will use the data produced by this site to estimate that threshold and to compare it between conditions.</p>
+
+    <div class="viewing-note">
+      <strong>Before you start</strong>
+      Use a laptop or desktop computer (not a phone). Sit roughly an arm's length from the screen, in a normally lit room. Close other tabs and applications. Each session takes around six to seven minutes.
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  BIOL2005 Perception · Curtin University · Built for Assessment 2, 2026.
+</footer>
+
+<script>
+// highlight current page link
+document.querySelectorAll('.nav-links a').forEach(a => {
+  if (a.getAttribute('href') === location.pathname.split('/').pop()) {
+    a.classList.add('active');
+  }
+});
+</script>
+
+</body>
+</html>
